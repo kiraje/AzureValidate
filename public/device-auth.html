@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Device Authentication - Service Principal Validator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e1e8ed;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .step-number.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .step-number.completed {
+            background: #27ae60;
+            color: white;
+        }
+
+        .step-title {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .device-code-box {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .device-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            margin: 10px 0;
+        }
+
+        .verification-url {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        .verification-url:hover {
+            text-decoration: underline;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-box h3 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #0c5460;
+            line-height: 1.6;
+        }
+
+        .sp-details {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .sp-details h3 {
+            color: #166534;
+            margin-bottom: 15px;
+        }
+
+        .sp-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #dcfce7;
+        }
+
+        .sp-field:last-child {
+            border-bottom: none;
+        }
+
+        .sp-label {
+            font-weight: 600;
+            color: #166534;
+        }
+
+        .sp-value {
+            font-family: 'Courier New', monospace;
+            background: #dcfce7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="language-selector" style="position: absolute; top: 20px; right: 20px;">
+                <select id="languageSelectDevice" style="padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 14px;">
+                    <option value="en">English</option>
+                    <option value="vi">Tiếng Việt</option>
+                </select>
+            </div>
+            <h1 data-i18n="device-title">Azure Device Authentication</h1>
+            <p data-i18n="device-subtitle">Login with your Azure account and create a service principal automatically</p>
+        </div>
+
+        <div class="content">
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step-item">
+                    <div class="step-number active" id="step1-indicator">1</div>
+                    <div class="step-title">Login</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number" id="step2-indicator">2</div>
+                    <div class="step-title">Create SP</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number" id="step3-indicator">3</div>
+                    <div class="step-title">Validate</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Device Code Login -->
+            <div class="step active" id="step1">
+                <h2 data-i18n="step1-title">Step 1: Azure Authentication</h2>
+                <div class="info-box">
+                    <h3 data-i18n="how-it-works">How it works:</h3>
+                    <p data-i18n="step-instructions">1. Click "Start Device Login" to get a device code<br>
+                       2. Open the verification URL in a new tab/window<br>
+                       3. Enter the device code and sign in with your Azure account<br>
+                       4. We'll automatically detect when you're authenticated</p>
+                </div>
+
+                <div id="deviceCodeSection" style="display: none;">
+                    <div class="device-code-box">
+                        <h3>Please authenticate with Azure</h3>
+                        <p>1. Open this URL in a new tab:</p>
+                        <a href="#" id="verificationUrl" class="verification-url" target="_blank">Loading...</a>
+                        <p>2. Enter this code:</p>
+                        <div class="device-code" id="deviceCode">Loading...</div>
+                        <p>Waiting for authentication... <span class="loading-spinner"></span></p>
+                    </div>
+                </div>
+
+                <div class="nav-buttons">
+                    <div></div>
+                    <button class="btn" id="startLoginBtn">Start Device Login</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Create Service Principal -->
+            <div class="step" id="step2">
+                <h2 data-i18n="step2-title">Step 2: Create Service Principal</h2>
+                <div class="info-box">
+                    <h3 data-i18n="account-info">Account Information:</h3>
+                    <p id="accountInfo">Loading...</p>
+                </div>
+
+                <form id="spForm">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="spName" style="display: block; font-weight: 600; margin-bottom: 8px;" data-i18n="sp-name-label">Service Principal Name:</label>
+                        <input type="text" id="spName" value="AzureValidatorSP" 
+                               style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px; font-size: 16px;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="spRole" style="display: block; font-weight: 600; margin-bottom: 8px;" data-i18n="role-label">Role:</label>
+                        <select id="spRole" style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px; font-size: 16px;">
+                            <option value="Contributor">Contributor</option>
+                            <option value="Owner">Owner</option>
+                            <option value="Reader">Reader</option>
+                        </select>
+                    </div>
+                </form>
+
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" id="backToStep1Btn">Back</button>
+                    <button class="btn" id="createSpBtn">Create Service Principal</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Service Principal Created & Validate -->
+            <div class="step" id="step3">
+                <h2 data-i18n="step3-title">Step 3: Service Principal Created</h2>
+                
+                <div class="sp-details">
+                    <h3 data-i18n="sp-created-success">✅ Service Principal Created Successfully</h3>
+                    <div class="sp-field">
+                        <span class="sp-label">App ID:</span>
+                        <span class="sp-value" id="spAppId">Loading...</span>
+                    </div>
+                    <div class="sp-field">
+                        <span class="sp-label">Display Name:</span>
+                        <span class="sp-value" id="spDisplayName">Loading...</span>
+                    </div>
+                    <div class="sp-field">
+                        <span class="sp-label">Tenant:</span>
+                        <span class="sp-value" id="spTenant">Loading...</span>
+                    </div>
+                    <div class="sp-field">
+                        <span class="sp-label">Subscription ID:</span>
+                        <span class="sp-value" id="spSubscription">Loading...</span>
+                    </div>
+                    <div class="sp-field">
+                        <span class="sp-label">Password:</span>
+                        <span class="sp-value" id="spPassword">Loading...</span>
+                    </div>
+                </div>
+
+                <form id="validateForm">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="webhookUrl" style="display: block; font-weight: 600; margin-bottom: 8px;" data-i18n="webhook-label">Webhook URL (optional):</label>
+                        <input type="url" id="webhookUrl" placeholder="https://your-app.com/webhook/azure-validation"
+                               style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px; font-size: 16px;">
+                    </div>
+                </form>
+
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" id="backToStep2Btn">Back</button>
+                    <div>
+                        <button class="btn" id="copyCredentialsBtn">Copy Credentials</button>
+                        <button class="btn" id="validateBtn">Validate & Test</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="device-auth.js"></script>
+</body>
+</html>

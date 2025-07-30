@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Service Principal Validator - Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0078d4;
+            border-bottom: 3px solid #0078d4;
+            padding-bottom: 10px;
+        }
+        .status {
+            background-color: #e7f3ff;
+            border-left: 4px solid #0078d4;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            color: #107c10;
+            font-weight: bold;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Azure Service Principal Validator</h1>
+        
+        <div class="status">
+            <p class="success">✅ Static Website Hosting is Working!</p>
+            <p>This page confirms that your Azure Service Principal has successfully:</p>
+            <ul>
+                <li>Created a storage account</li>
+                <li>Enabled static website hosting</li>
+                <li>Created the $web container</li>
+                <li>Uploaded this test file</li>
+            </ul>
+        </div>
+
+        <h2>Test Details</h2>
+        <p>Storage Account: <code id="storage-account">Loading...</code></p>
+        <p>Container: <code>$web</code></p>
+        <p>File: <code>index.html</code></p>
+        <p>Timestamp: <code id="timestamp"></code></p>
+
+        <h2>Next Steps</h2>
+        <p>Your Azure Service Principal validation has completed successfully. The validator API has tested all required permissions and operations.</p>
+
+        <script>
+            // Display current timestamp
+            document.getElementById('timestamp').textContent = new Date().toISOString();
+            
+            // Extract storage account name from URL
+            const hostname = window.location.hostname;
+            const storageAccount = hostname.split('.')[0];
+            document.getElementById('storage-account').textContent = storageAccount || 'Unknown';
+        </script>
+    </div>
+</body>
+</html>

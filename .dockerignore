@@ -1,0 +1,54 @@
+# Development files
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation (keep CLAUDE.md for instructions)
+README*.md
+!CLAUDE.md
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs and data (created by containers)
+logs/
+data/
+*.log
+
+# Test files
+tests/
+coverage/
+.nyc_output
+
+# Build artifacts
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/

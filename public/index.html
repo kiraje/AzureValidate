@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Service Principal Validator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .form-section {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group.optional label::after {
+            content: " (optional)";
+            color: #7f8c8d;
+            font-weight: normal;
+        }
+
+        .validate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .validate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .validate-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-section.show {
+            display: block;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-icon.pending {
+            background: #f39c12;
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.success {
+            background: #27ae60;
+        }
+
+        .status-icon.error {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .validation-details {
+            margin-top: 20px;
+        }
+
+        .permission-check {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .permission-check:last-child {
+            border-bottom: none;
+        }
+
+        .permission-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+        }
+
+        .permission-icon.success {
+            background: #27ae60;
+        }
+
+        .permission-icon.error {
+            background: #e74c3c;
+        }
+
+        .permission-icon.pending {
+            background: #95a5a6;
+        }
+
+        .permission-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .error-details {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fdf2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            color: #dc2626;
+        }
+
+        .webhook-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border: 1px solid #dbeafe;
+            border-radius: 6px;
+        }
+
+        .webhook-section.success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="language-selector" style="position: absolute; top: 20px; right: 20px;">
+                <select id="languageSelect" style="padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 14px;">
+                    <option value="en">English</option>
+                    <option value="vi">Tiếng Việt</option>
+                </select>
+            </div>
+            <h1 data-i18n="title">Azure Service Principal Validator</h1>
+            <p data-i18n="subtitle">Test your Azure credentials with comprehensive permission validation</p>
+            <div style="margin-top: 15px;">
+                <a href="/device-auth.html" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; font-size: 14px;" data-i18n="device-auth-link">
+                    🔐 Create Service Principal with Device Login
+                </a>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <form id="validationForm">
+                <div class="form-group">
+                    <label for="servicePrincipalJson" data-i18n="sp-json-label">Service Principal JSON</label>
+                    <textarea id="servicePrincipalJson" name="servicePrincipalJson" required 
+                              data-i18n-placeholder="sp-json-placeholder"
+                              placeholder='{"appId": "4fb705ba-7cb6-4cf6-a8a4-4098f36fc3e9", "displayName": "MyServicePrincipal", "password": "wvk8Q~_cFMYCv1Am0a7n~qenMdwyG8PxxOsfTdpC", "tenant": "c166c5ce-fbd6-458d-bde0-4bd11fcee98c"}'
+                              style="width: 100%; height: 100px; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px; font-family: monospace; font-size: 14px; resize: vertical; transition: border-color 0.3s ease;">
+                    </textarea>
+                    <small style="color: #7f8c8d; font-size: 12px;" data-i18n="sp-json-help">Paste your complete service principal JSON (all 4 fields)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="subscriptionId" data-i18n="subscription-id-label">Subscription ID</label>
+                    <input type="text" id="subscriptionId" name="subscriptionId" required data-i18n-placeholder="subscription-id-placeholder" placeholder="abcdef01-2345-6789-abcd-ef0123456789">
+                </div>
+
+                <div class="form-group optional">
+                    <label for="webhookUrl" data-i18n="webhook-url-label">Webhook URL</label>
+                    <input type="url" id="webhookUrl" name="webhookUrl" data-i18n-placeholder="webhook-url-placeholder" placeholder="https://your-app.com/webhook/azure-validation">
+                </div>
+
+                <button type="submit" class="validate-btn" id="validateBtn" data-i18n="validate-btn">
+                    Validate Credentials
+                </button>
+            </form>
+
+            <div class="status-section" id="statusSection">
+                <div class="status-header">
+                    <div class="status-icon pending" id="statusIcon">⏳</div>
+                    <div class="status-text" id="statusText" data-i18n="validating">Validating credentials...</div>
+                </div>
+
+                <div class="validation-details" id="validationDetails">
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-auth">•</div>
+                        <div class="permission-name" data-i18n="perm-auth">Azure Authentication</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-rg">•</div>
+                        <div class="permission-name" data-i18n="perm-rg">Resource Group Creation</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-storage">•</div>
+                        <div class="permission-name" data-i18n="perm-storage">Storage Account Creation</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-container">•</div>
+                        <div class="permission-name" data-i18n="perm-container">Blob Container Creation</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-upload">•</div>
+                        <div class="permission-name" data-i18n="perm-upload">File Upload</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-website">•</div>
+                        <div class="permission-name" data-i18n="perm-website">Static Website Configuration</div>
+                    </div>
+                    <div class="permission-check">
+                        <div class="permission-icon pending" id="perm-cleanup">•</div>
+                        <div class="permission-name" data-i18n="perm-cleanup">Resource Cleanup</div>
+                    </div>
+                </div>
+
+                <div class="error-details" id="errorDetails" style="display: none;"></div>
+                <div class="webhook-section" id="webhookSection" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
