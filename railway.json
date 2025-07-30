@@ -10,4 +10,3 @@
     "restartPolicyType": "ON_FAILURE"
   }
 }
-EOF < /dev/null
