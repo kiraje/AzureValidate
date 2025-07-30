@@ -20,12 +20,7 @@ services:
       - backend
 
   validator-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
+    image: kiraje/azure-service-principal-validator:latest
     container_name: azure-validator-api
     expose:
       - "3000"
