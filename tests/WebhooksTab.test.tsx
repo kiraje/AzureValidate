@@ -78,7 +78,7 @@ describe('WebhooksTab', () => {
 
     // enabled toggle should be on — find the toggle by role switch
     const toggle = screen.getByRole('switch');
-    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
 
     // Secret input should be empty (write-only) but placeholder shows masking
     const secretInput = screen.getByPlaceholderText(/••••/);

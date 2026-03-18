@@ -35,11 +35,12 @@ export function WebhooksTab() {
   const [showTestMsg, setShowTestMsg] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     async function loadData() {
       try {
         const [configRes, deliveriesRes] = await Promise.all([
-          fetch('/api/webhooks/config'),
-          fetch('/api/webhooks/deliveries'),
+          fetch('/api/webhooks/config', { signal: controller.signal }),
+          fetch('/api/webhooks/deliveries', { signal: controller.signal }),
         ]);
 
         if (configRes.ok) {
@@ -53,12 +54,16 @@ export function WebhooksTab() {
           const data = await deliveriesRes.json();
           setDeliveries(data.deliveries ?? []);
         }
-      } finally {
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         setLoading(false);
+        return;
       }
+      setLoading(false);
     }
 
     loadData();
+    return () => controller.abort();
   }, []);
 
   async function handleSave() {
