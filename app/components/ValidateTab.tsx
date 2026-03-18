@@ -15,15 +15,19 @@ interface ValidationState {
 interface Props {
   initialValidationId?: string;
   onStreamStarted?: () => void;
+  initialCredentials?: { tenant_id: string; client_id: string; client_secret: string; display_name?: string };
+  initialSubscriptionId?: string;
+  onInitialCredentialsConsumed?: () => void;
 }
 
-export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
+export function ValidateTab({ initialValidationId, onStreamStarted, initialCredentials, initialSubscriptionId, onInitialCredentialsConsumed }: Props) {
   const [state, setState] = useState<ValidationState>({
     running: !!initialValidationId,
     statuses: {},
     result: null,
   });
   const esRef = useRef<EventSource | null>(null);
+  const autoStartedRef = useRef(false);
 
   const openStream = useCallback((id: string) => {
     onStreamStarted?.();
@@ -84,6 +88,16 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
     };
   }, [initialValidationId, openStream]);
 
+  // Auto-start validation when initial credentials are passed in from device auth
+  useEffect(() => {
+    if (initialCredentials && initialSubscriptionId && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startValidation(initialCredentials, initialSubscriptionId);
+      onInitialCredentialsConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCredentials, initialSubscriptionId]);
+
   function cancel() {
     esRef.current?.close();
     esRef.current = null;
@@ -118,7 +132,12 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 space-y-4">
-      <CredentialInput onValidCredentials={startValidation} disabled={state.running} />
+      <CredentialInput
+        onValidCredentials={startValidation}
+        disabled={state.running}
+        initialCredentials={initialCredentials}
+        initialSubscriptionId={initialSubscriptionId}
+      />
 
       {(state.running || state.result) && (
         <>

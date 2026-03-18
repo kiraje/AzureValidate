@@ -7,8 +7,26 @@ import { WebhooksTab } from './components/WebhooksTab';
 
 type Tab = 'validate' | 'device-auth' | 'webhooks';
 
+interface PendingCredentials {
+  tenant_id: string;
+  client_id: string;
+  client_secret: string;
+  display_name?: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('validate');
+  const [pendingCredentials, setPendingCredentials] = useState<PendingCredentials | undefined>(undefined);
+  const [pendingSubscriptionId, setPendingSubscriptionId] = useState<string | undefined>(undefined);
+
+  function handleDeviceAuthValidate(
+    credentials: PendingCredentials,
+    subscriptionId: string
+  ) {
+    setPendingCredentials(credentials);
+    setPendingSubscriptionId(subscriptionId);
+    setActiveTab('validate');
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 p-6">
@@ -30,11 +48,18 @@ export default function Home() {
 
         {/* Tab content */}
         <div className="mt-2">
-          {activeTab === 'validate' && <ValidateTab />}
+          {activeTab === 'validate' && (
+            <ValidateTab
+              initialCredentials={pendingCredentials}
+              initialSubscriptionId={pendingSubscriptionId}
+              onInitialCredentialsConsumed={() => {
+                setPendingCredentials(undefined);
+                setPendingSubscriptionId(undefined);
+              }}
+            />
+          )}
           {activeTab === 'device-auth' && (
-            <DeviceAuthTab onValidate={(credentials, subscriptionId) => {
-              console.log('Device auth complete', { credentials, subscriptionId });
-            }} />
+            <DeviceAuthTab onValidate={handleDeviceAuthValidate} />
           )}
           {activeTab === 'webhooks' && <WebhooksTab />}
         </div>

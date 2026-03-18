@@ -14,6 +14,8 @@ interface ParsedCredentials {
 interface Props {
   onValidCredentials: (credentials: ParsedCredentials, subscriptionId: string) => void;
   disabled?: boolean;
+  initialCredentials?: ParsedCredentials;
+  initialSubscriptionId?: string;
 }
 
 function parseCredentials(raw: string): ParsedCredentials | null {
@@ -43,9 +45,11 @@ function parseCredentials(raw: string): ParsedCredentials | null {
   }
 }
 
-export function CredentialInput({ onValidCredentials, disabled = false }: Props) {
-  const [json, setJson] = useState('');
-  const [subscriptionId, setSubscriptionId] = useState('');
+export function CredentialInput({ onValidCredentials, disabled = false, initialCredentials, initialSubscriptionId }: Props) {
+  const [json, setJson] = useState(() =>
+    initialCredentials ? JSON.stringify(initialCredentials, null, 2) : ''
+  );
+  const [subscriptionId, setSubscriptionId] = useState(initialSubscriptionId ?? '');
   const [error, setError] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
