@@ -256,6 +256,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig,
                       result.permissions.blob_upload;
 
     } catch (error) {
+      onProgress('storage_account_create', 'failed');
       result.errors.push(`Storage account creation failed: ${error.message}`);
       logger.error(error, 'Storage account creation failed');
     }

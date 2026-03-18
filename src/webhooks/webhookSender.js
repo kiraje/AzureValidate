@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { logger } = require('../utils/logger');
 const { saveWebhookDelivery, updateWebhookDelivery } = require('../utils/database');
 
-async function sendWebhook(webhookUrl, payload, validationId) {
+async function sendWebhook(webhookUrl, payload, validationId, secretHeader = null) {
   const deliveryId = uuidv4();
   const maxRetries = parseInt(process.env.WEBHOOK_RETRY_COUNT) || 3;
   const timeout = parseInt(process.env.WEBHOOK_TIMEOUT) || 30000;
@@ -31,13 +31,16 @@ async function sendWebhook(webhookUrl, payload, validationId) {
       let response;
       
       // Try POST first
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Webhook-Delivery-ID': deliveryId,
+        'X-Validation-ID': validationId
+      };
+      if (secretHeader) headers['X-Webhook-Secret'] = secretHeader;
+
       response = await axios.post(webhookUrl, payload, {
         timeout,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Delivery-ID': deliveryId,
-          'X-Validation-ID': validationId
-        },
+        headers,
         validateStatus: null // Don't throw on non-2xx status
       });
 

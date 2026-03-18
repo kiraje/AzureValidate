@@ -98,12 +98,12 @@ async function initializeQueue() {
 
   // Process webhook jobs
   webhookQueue.process('send-webhook', async (job) => {
-    const { validationId, webhookUrl, payload } = job.data;
-    
+    const { validationId, webhookUrl, payload, secretHeader } = job.data;
+
     logger.info({ validationId, webhookUrl }, 'Processing webhook job');
-    
+
     try {
-      await sendWebhook(webhookUrl, payload, validationId);
+      await sendWebhook(webhookUrl, payload, validationId, secretHeader);
       logger.info({ validationId }, 'Webhook sent successfully');
     } catch (error) {
       logger.error({ validationId, error: error.message }, 'Webhook delivery failed');
