@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,18 @@ export function CredentialInput({ onValidCredentials, disabled = false, initialC
   );
   const [subscriptionId, setSubscriptionId] = useState(initialSubscriptionId ?? '');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (initialCredentials) {
+      setJson(JSON.stringify(initialCredentials, null, 2));
+    }
+  }, [initialCredentials]);
+
+  useEffect(() => {
+    if (initialSubscriptionId) {
+      setSubscriptionId(initialSubscriptionId);
+    }
+  }, [initialSubscriptionId]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
