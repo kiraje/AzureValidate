@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { PillSwitcher } from './components/PillSwitcher';
+import { ValidateTab } from './components/ValidateTab';
 
 type Tab = 'validate' | 'device-auth' | 'webhooks';
 
@@ -27,7 +28,7 @@ export default function Home() {
 
         {/* Tab content */}
         <div className="mt-2">
-          {activeTab === 'validate' && <div className="text-zinc-600 text-sm">Validate tab — coming in Task 9</div>}
+          {activeTab === 'validate' && <ValidateTab />}
           {activeTab === 'device-auth' && <div className="text-zinc-600 text-sm">Device auth tab — coming in Task 10</div>}
           {activeTab === 'webhooks' && <div className="text-zinc-600 text-sm">Webhooks tab — coming in Task 11</div>}
         </div>
