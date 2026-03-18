@@ -47,4 +47,4 @@ build/
 # Temporary folders
 tmp/
 temp/
-EOF < /dev/null
+EOF < /dev/null.superpowers/
