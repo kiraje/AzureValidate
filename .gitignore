@@ -51,3 +51,7 @@ temp/
 # Git worktrees
 .worktrees/
 EOF < /dev/null.superpowers/
+
+# Next.js
+.next/
+next-env.d.ts
