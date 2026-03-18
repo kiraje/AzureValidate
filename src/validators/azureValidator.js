@@ -8,7 +8,7 @@ const mime = require('mime-types');
 const { logger } = require('../utils/logger');
 const { AzureError } = require('../utils/errorHandler');
 
-async function validateServicePrincipal(credentials, subscriptionId, testConfig) {
+async function validateServicePrincipal(credentials, subscriptionId, testConfig, onProgress = () => {}) {
   const result = {
     isValid: false,
     permissions: {
@@ -44,18 +44,21 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
     // Test 1: Create/Get Resource Group
     logger.info('Testing resource group creation...');
+    onProgress('resource_group_create', 'running');
     try {
       const resourceGroupName = testConfig.resource_group || 'validation-rg';
       const location = testConfig.location || 'eastus';
-      
+
       await resourceClient.resourceGroups.createOrUpdate(resourceGroupName, {
         location: location
       });
-      
+
       result.permissions.resource_group_create = true;
+      onProgress('resource_group_create', 'passed');
       createdResources.push({ type: 'resourceGroup', name: resourceGroupName });
       logger.info(`Resource group '${resourceGroupName}' created/verified`);
     } catch (error) {
+      onProgress('resource_group_create', 'failed');
       result.errors.push(`Resource group creation failed: ${error.message}`);
       logger.error(error, 'Resource group creation failed');
       return result;
@@ -63,6 +66,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
     // Test 2: Create Storage Account
     logger.info('Testing storage account creation...');
+    onProgress('storage_account_create', 'running');
     try {
       storageAccountName = generateStorageAccountName();
       const resourceGroupName = testConfig.resource_group || 'validation-rg';
@@ -83,8 +87,9 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
       // Wait for completion with timeout
       const storageAccount = await poller.pollUntilDone();
-      
+
       result.permissions.storage_account_create = true;
+      onProgress('storage_account_create', 'passed');
       result.storageAccountName = storageAccountName;
       createdResources.push({ type: 'storageAccount', name: storageAccountName });
       logger.info(`Storage account '${storageAccountName}' created`);
@@ -99,6 +104,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
       // Test 3: Enable Static Website
       logger.info('Testing static website enablement...');
+      onProgress('static_website_enable', 'running');
       try {
         const blobServiceClient = new BlobServiceClient(
           `https://${storageAccountName}.blob.core.windows.net`,
@@ -114,14 +120,17 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
         });
 
         result.permissions.static_website_enable = true;
+        onProgress('static_website_enable', 'passed');
         logger.info('Static website hosting enabled');
       } catch (error) {
+        onProgress('static_website_enable', 'failed');
         result.errors.push(`Static website enable failed: ${error.message}`);
         logger.error(error, 'Static website enable failed');
       }
 
       // Test 4: Create Container and Set Access
       logger.info('Testing container creation...');
+      onProgress('blob_container_create', 'running');
       try {
         const blobServiceClient = new BlobServiceClient(
           `https://${storageAccountName}.blob.core.windows.net`,
@@ -129,7 +138,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
         );
 
         const containerClient = blobServiceClient.getContainerClient('$web');
-        
+
         // Check if container exists, create if not
         const exists = await containerClient.exists();
         if (!exists) {
@@ -138,16 +147,19 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
         // Set public access - use correct parameters for Node.js SDK
         await containerClient.setAccessPolicy('Container');
-        
+
         result.permissions.blob_container_create = true;
+        onProgress('blob_container_create', 'passed');
         logger.info('Container created/verified with public access');
       } catch (error) {
+        onProgress('blob_container_create', 'failed');
         result.errors.push(`Container creation failed: ${error.message}`);
         logger.error(error, 'Container creation failed');
       }
 
       // Test 5: Upload Test Files
       logger.info('Testing file upload...');
+      onProgress('blob_upload', 'running');
       try {
         // Use storage account key for blob operations (like Python version)
         const blobServiceClient = new BlobServiceClient(
@@ -156,7 +168,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
         );
 
         const containerClient = blobServiceClient.getContainerClient('$web');
-        
+
         // Upload test files
         const testFiles = testConfig.test_files || ['index.html', '404.html'];
         const testFilesPath = path.join(__dirname, '../../test-files');
@@ -164,7 +176,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
         for (const fileName of testFiles) {
           const filePath = path.join(testFilesPath, fileName);
           let content;
-          
+
           try {
             content = await fs.readFile(filePath);
           } catch (error) {
@@ -174,17 +186,19 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
 
           const blockBlobClient = containerClient.getBlockBlobClient(fileName);
           const contentType = mime.lookup(fileName) || 'application/octet-stream';
-          
+
           await blockBlobClient.upload(content, content.length, {
             blobHTTPHeaders: { blobContentType: contentType }
           });
-          
+
           logger.info(`Uploaded ${fileName}`);
         }
 
         result.permissions.blob_upload = true;
+        onProgress('blob_upload', 'passed');
         logger.info('Test files uploaded successfully');
       } catch (error) {
+        onProgress('blob_upload', 'failed');
         result.errors.push(`File upload failed: ${error.message}`);
         logger.error(error, 'File upload failed');
       }
@@ -203,6 +217,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
       // Test 6: Storage Account Deletion (Cleanup)
       if (process.env.CLEANUP_ENABLED === 'true') {
         logger.info('Testing storage account deletion...');
+        onProgress('storage_account_delete', 'running');
         try {
           // Create a temporary storage account to test deletion
           const tempStorageName = generateStorageAccountName();
@@ -215,18 +230,20 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
               location: testConfig.location || 'eastus'
             }
           );
-          
+
           await tempPoller.pollUntilDone();
-          
+
           // Now delete it
           await storageClient.storageAccounts.beginDeleteAndWait(
             resourceGroupName,
             tempStorageName
           );
-          
+
           result.permissions.storage_account_delete = true;
+          onProgress('storage_account_delete', 'passed');
           logger.info('Storage account deletion test passed');
         } catch (error) {
+          onProgress('storage_account_delete', 'failed');
           result.errors.push(`Storage account deletion test failed: ${error.message}`);
           logger.error(error, 'Storage account deletion test failed');
         }
@@ -253,6 +270,7 @@ async function validateServicePrincipal(credentials, subscriptionId, testConfig)
     }
   }
 
+  onProgress('done', result.isValid ? 'complete' : 'failed');
   return result;
 }
 

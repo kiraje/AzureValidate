@@ -1,9 +1,12 @@
 const { Pool } = require('pg');
 const { logger } = require('./logger');
 
-let pool;
+// Use globalThis to survive Next.js hot-reload in dev
+const globalWithPool = globalThis;
+let pool = globalWithPool._pgPool || null;
 
 async function initializeDatabase() {
+  if (pool) return; // already initialized
   try {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
@@ -11,13 +14,9 @@ async function initializeDatabase() {
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     });
-
-    // Test connection
+    globalWithPool._pgPool = pool;
     await pool.query('SELECT NOW()');
-
-    // Create tables if not exists
     await createTables();
-    
     logger.info('Database connection established');
   } catch (error) {
     logger.error(error, 'Failed to initialize database');
@@ -55,7 +54,16 @@ async function createTables() {
 
     `CREATE INDEX IF NOT EXISTS idx_validations_status ON validations(status)`,
     `CREATE INDEX IF NOT EXISTS idx_validations_tenant ON validations(tenant_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_validation ON webhook_deliveries(validation_id)`
+    `CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_validation ON webhook_deliveries(validation_id)`,
+
+    `CREATE TABLE IF NOT EXISTS webhook_config (
+  id      INTEGER PRIMARY KEY DEFAULT 1,
+  url     TEXT,
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  secret_header TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+    `INSERT INTO webhook_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING`
   ];
 
   for (const query of queries) {
@@ -158,11 +166,41 @@ async function updateWebhookDelivery(id, updates) {
   return result.rows[0];
 }
 
+async function getWebhookConfig() {
+  const result = await pool.query('SELECT * FROM webhook_config WHERE id = 1');
+  return result.rows[0] || { url: null, enabled: false, secret_header: null };
+}
+
+async function saveWebhookConfig({ url, enabled, secret_header }) {
+  const result = await pool.query(
+    `UPDATE webhook_config
+     SET url = $1, enabled = $2, secret_header = $3, updated_at = NOW()
+     WHERE id = 1
+     RETURNING *`,
+    [url || null, enabled, secret_header || null]
+  );
+  return result.rows[0];
+}
+
+async function getRecentDeliveries(limit = 10) {
+  const result = await pool.query(
+    `SELECT id, validation_id, response_status, status, last_attempt_at
+     FROM webhook_deliveries
+     ORDER BY last_attempt_at DESC NULLS LAST
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows;
+}
+
 module.exports = {
   initializeDatabase,
   saveValidation,
   updateValidation,
   getValidation,
   saveWebhookDelivery,
-  updateWebhookDelivery
+  updateWebhookDelivery,
+  getWebhookConfig,
+  saveWebhookConfig,
+  getRecentDeliveries
 };
