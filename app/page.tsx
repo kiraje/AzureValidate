@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { PillSwitcher } from './components/PillSwitcher';
 import { ValidateTab } from './components/ValidateTab';
 import { DeviceAuthTab } from './components/DeviceAuthTab';
+import { WebhooksTab } from './components/WebhooksTab';
 
 type Tab = 'validate' | 'device-auth' | 'webhooks';
 
@@ -35,7 +36,7 @@ export default function Home() {
               console.log('Device auth complete', { credentials, subscriptionId });
             }} />
           )}
-          {activeTab === 'webhooks' && <div className="text-zinc-600 text-sm">Webhooks tab — coming in Task 11</div>}
+          {activeTab === 'webhooks' && <WebhooksTab />}
         </div>
       </div>
     </div>
