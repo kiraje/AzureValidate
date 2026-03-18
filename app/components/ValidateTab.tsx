@@ -32,7 +32,10 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
     const es = new EventSource(`/api/validate/${id}/stream`);
     esRef.current = es;
 
-    es.onmessage = (event) => {
+    // Server sends plain `data:` events (no named event type) so onmessage fires for all.
+    // We also attach a named 'done' listener as belt-and-suspenders in case the protocol
+    // ever adds explicit event types.
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
 
@@ -55,6 +58,9 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
         }
       } catch { /* ignore parse errors */ }
     };
+
+    es.onmessage = handleMessage;
+    es.addEventListener('done', handleMessage as EventListener);
 
     es.onerror = () => {
       es.close();
