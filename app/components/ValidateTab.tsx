@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { CredentialInput } from './CredentialInput';
 import { PermissionChecklist } from './PermissionChecklist';
 import { ValidationResult } from './ValidationResult';
@@ -25,9 +25,7 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
   });
   const esRef = useRef<EventSource | null>(null);
 
-  const passedCount = Object.values(state.statuses).filter(s => s === 'passed').length;
-
-  function openStream(id: string) {
+  const openStream = useCallback((id: string) => {
     onStreamStarted?.();
     const es = new EventSource(`/api/validate/${id}/stream`);
     esRef.current = es;
@@ -63,15 +61,18 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
     es.addEventListener('done', handleMessage as EventListener);
 
     es.onerror = () => {
-      es.close();
-      esRef.current = null;
-      setState(prev => ({
-        running: false,
-        statuses: prev.statuses,
-        result: { isValid: false, errors: ['Connection to server lost'] },
-      }));
+      if (es.readyState === EventSource.CLOSED) {
+        es.close();
+        esRef.current = null;
+        setState(prev => ({
+          ...prev,
+          running: false,
+          result: { isValid: false, errors: ['Connection to server lost'] },
+        }));
+      }
+      // Otherwise: transient error, browser will reconnect automatically
     };
-  }
+  }, [onStreamStarted]);
 
   // If an initialValidationId is provided (from device auth), open stream immediately
   useEffect(() => {
@@ -81,8 +82,7 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
     return () => {
       esRef.current?.close();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValidationId]);
+  }, [initialValidationId, openStream]);
 
   function cancel() {
     esRef.current?.close();
@@ -123,7 +123,7 @@ export function ValidateTab({ initialValidationId, onStreamStarted }: Props) {
       {(state.running || state.result) && (
         <>
           <div className="border-t border-zinc-800 pt-4">
-            <PermissionChecklist statuses={state.statuses} passedCount={passedCount} total={6} />
+            <PermissionChecklist statuses={state.statuses} total={6} running={state.running} />
           </div>
 
           {state.running && (

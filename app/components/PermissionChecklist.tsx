@@ -18,8 +18,8 @@ const PERMISSIONS: PermRow[] = [
 
 interface Props {
   statuses: Record<string, Status>;
-  passedCount: number;
   total: number;
+  running: boolean;
 }
 
 const statusClass: Record<Status, string> = {
@@ -36,11 +36,12 @@ const statusLabel: Record<Status, string> = {
   failed: 'failed',
 };
 
-export function PermissionChecklist({ statuses, passedCount, total }: Props) {
+export function PermissionChecklist({ statuses, total, running }: Props) {
+  const passedCount = Object.values(statuses).filter(s => s === 'passed').length;
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-zinc-400 font-medium">Validation running…</span>
+        <span className="text-xs text-zinc-400 font-medium">{running ? 'Validation running…' : 'Validation checks'}</span>
         <span className="text-xs font-mono text-zinc-600">{passedCount} / {total}</span>
       </div>
       <div className="divide-y divide-zinc-800/60">

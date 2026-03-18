@@ -54,7 +54,7 @@ export function CredentialInput({ onValidCredentials, disabled = false }: Props)
 
     const creds = parseCredentials(json);
     if (!creds) {
-      setError('Invalid JSON — expected appId, password, and tenant fields');
+      setError('Enter valid Azure credentials JSON (Azure CLI format with appId/password/tenant, or API format with tenant_id/client_id/client_secret)');
       return;
     }
     if (!subscriptionId.trim()) {
