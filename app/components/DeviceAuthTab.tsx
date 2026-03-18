@@ -241,7 +241,8 @@ export function DeviceAuthTab({ onValidate }: DeviceAuthTabProps) {
               {/* Manual advance button */}
               <button
                 onClick={() => setStep(2)}
-                className="w-full py-2 text-xs font-medium bg-white text-zinc-900 rounded hover:bg-zinc-100 transition-colors"
+                disabled={loading}
+                className="w-full py-2 text-xs font-medium bg-white text-zinc-900 rounded hover:bg-zinc-100 transition-colors disabled:opacity-50"
               >
                 I&apos;ve authenticated →
               </button>
