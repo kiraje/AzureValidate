@@ -23,6 +23,7 @@ export async function GET(
   // These are promoted to outer scope so cancel() can clean them up
   let fallbackPoll: ReturnType<typeof setInterval> | null = null;
   let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
+  let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -33,7 +34,7 @@ export async function GET(
       };
 
       // Safety timeout: 6 minutes
-      const timeout = setTimeout(() => {
+      safetyTimeout = setTimeout(() => {
         send({ step: 'done', status: 'failed', errors: ['Timed out waiting for validation result'] });
         controller.close();
       }, 6 * 60 * 1000);
@@ -48,7 +49,7 @@ export async function GET(
             const event = JSON.parse(message);
             send(event);
             if (event.step === 'done') {
-              clearTimeout(timeout);
+              clearTimeout(safetyTimeout!);
               controller.close();
             }
           } catch {
@@ -58,7 +59,7 @@ export async function GET(
 
         sub.on('error', async () => {
           // Fallback: poll DB every 2s
-          clearTimeout(timeout);
+          clearTimeout(safetyTimeout!);
           fallbackTimeout = setTimeout(() => {
             send({ step: 'done', status: 'failed', errors: ['Timed out'] });
             controller.close();
@@ -78,13 +79,14 @@ export async function GET(
         });
 
       } catch {
-        clearTimeout(timeout);
+        clearTimeout(safetyTimeout!);
         controller.close();
       }
     },
 
     cancel() {
       closed = true;
+      if (safetyTimeout) { clearTimeout(safetyTimeout); safetyTimeout = null; }
       if (fallbackPoll) { clearInterval(fallbackPoll); fallbackPoll = null; }
       if (fallbackTimeout) { clearTimeout(fallbackTimeout); fallbackTimeout = null; }
       if (sub) {
