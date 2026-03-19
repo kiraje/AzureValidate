@@ -1,48 +1,49 @@
 # syntax=docker/dockerfile:1
-# Build stage
-FROM --platform=$BUILDPLATFORM node:18-alpine AS builder
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev --platform=$TARGETPLATFORM
 
-# Runtime stage  
-FROM --platform=$TARGETPLATFORM node:18-alpine
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-RUN apk add --no-cache tini curl dumb-init python3 py3-pip gcc musl-dev linux-headers python3-dev \
+# ── Stage 1: build Next.js ────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+FROM node:20-alpine
+WORKDIR /app
+
+# Install Azure CLI (needed for Device Auth tab) + curl for health checks
+RUN apk add --no-cache curl python3 py3-pip gcc musl-dev linux-headers python3-dev \
     && pip3 install --break-system-packages azure-cli \
-    && apk del gcc musl-dev linux-headers python3-dev
-WORKDIR /app
+    && apk del gcc musl-dev linux-headers python3-dev \
+    && rm -rf /root/.cache
 
-# Copy dependencies from builder
+# Copy built Next.js app
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package*.json ./
 
-# Copy application files
-COPY src/ ./src/
-COPY public/ ./public/
-COPY test-files/ ./test-files/
-COPY package*.json ./
+# Copy server, worker, and backend src/
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/test-files ./test-files
 
-# Create required directories
-RUN mkdir -p logs data && \
-    chmod 755 logs data
+RUN mkdir -p logs \
+    && addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001 \
+    && chown -R nodejs:nodejs /app \
+    && mkdir -p /home/nodejs/.azure \
+    && chown -R nodejs:nodejs /home/nodejs/.azure
 
-# Add non-root user and setup Azure CLI permissions
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app && \
-    mkdir -p /home/nodejs/.azure && \
-    chown -R nodejs:nodejs /home/nodejs/.azure
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 USER nodejs
-
 EXPOSE 3000
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "src/server.js"]
+# Default: run the Next.js server.
+# For the worker, override in docker-compose: command: node src/worker.js
+CMD ["node", "server.js"]
