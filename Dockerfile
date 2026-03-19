@@ -23,7 +23,6 @@ RUN apk add --no-cache curl python3 py3-pip gcc musl-dev linux-headers python3-d
 # Copy built Next.js app
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 
 # Copy server, worker, and backend src/
