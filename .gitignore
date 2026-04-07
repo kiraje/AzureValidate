@@ -47,4 +47,11 @@ build/
 # Temporary folders
 tmp/
 temp/
-EOF < /dev/null
+
+# Git worktrees
+.worktrees/
+EOF < /dev/null.superpowers/
+
+# Next.js
+.next/
+next-env.d.ts

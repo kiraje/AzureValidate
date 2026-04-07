@@ -1,15 +1,19 @@
 const Queue = require('bull');
+const Redis = require('ioredis');
 const { logger } = require('./logger');
 const { validateServicePrincipal } = require('../validators/azureValidator');
 const { sendWebhook } = require('../webhooks/webhookSender');
-const { updateValidation, getValidation } = require('./database');
+const { updateValidation, getValidation, getWebhookConfig } = require('./database');
 
 let validationQueue;
 let webhookQueue;
+let pubRedis;
 
 async function initializeQueue() {
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  
+
+  pubRedis = new Redis(redisUrl);
+
   // Initialize validation queue
   validationQueue = new Queue('validation', redisUrl);
   
@@ -30,7 +34,11 @@ async function initializeQueue() {
       const result = await validateServicePrincipal(
         credentials,
         subscriptionId,
-        testConfig
+        testConfig,
+        (step, status) => pubRedis.publish(
+          `validation:progress:${validationId}`,
+          JSON.stringify({ step, status })
+        ).catch(() => {}) // swallow publish errors — don't fail the job
       );
       
       // Update validation with results
@@ -40,12 +48,13 @@ async function initializeQueue() {
         report: result
       });
       
-      // Queue webhook if URL provided
-      const validation = await getValidation(validationId);
-      if (validation.webhook_url) {
+      // Queue webhook if configured and enabled
+      const webhookConfig = await getWebhookConfig();
+      if (webhookConfig.enabled && webhookConfig.url) {
         await webhookQueue.add('send-webhook', {
           validationId,
-          webhookUrl: validation.webhook_url,
+          webhookUrl: webhookConfig.url,
+          secretHeader: webhookConfig.secret_header,
           payload: {
             validation_id: validationId,
             timestamp: new Date().toISOString(),
@@ -89,12 +98,12 @@ async function initializeQueue() {
 
   // Process webhook jobs
   webhookQueue.process('send-webhook', async (job) => {
-    const { validationId, webhookUrl, payload } = job.data;
-    
+    const { validationId, webhookUrl, payload, secretHeader } = job.data;
+
     logger.info({ validationId, webhookUrl }, 'Processing webhook job');
-    
+
     try {
-      await sendWebhook(webhookUrl, payload, validationId);
+      await sendWebhook(webhookUrl, payload, validationId, secretHeader);
       logger.info({ validationId }, 'Webhook sent successfully');
     } catch (error) {
       logger.error({ validationId, error: error.message }, 'Webhook delivery failed');

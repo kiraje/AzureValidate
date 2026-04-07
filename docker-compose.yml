@@ -20,19 +20,23 @@ services:
       - backend
 
   validator-api:
-    image: kiraje/azure-service-principal-validator:latest
+    image: ${DOCKER_IMAGE:-azure-validator:latest}
     container_name: azure-validator-api
+    command: node server.js
     expose:
       - "3000"
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:password@db:5432/validator
-      - REDIS_URL=redis://redis:6379
-      - API_KEY=development-api-key
-      - LOG_LEVEL=debug
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - API_KEY=${API_KEY}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - app_logs:/app/logs
       - ./test-files:/app/test-files:ro
@@ -45,6 +49,30 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  validator-worker:
+    image: ${DOCKER_IMAGE:-azure-validator:latest}
+    command: node src/worker.js
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=${NODE_ENV:-production}
+      - CLEANUP_ENABLED=${CLEANUP_ENABLED:-true}
+      - VALIDATION_TIMEOUT=${VALIDATION_TIMEOUT:-300000}
+      - WEBHOOK_RETRY_COUNT=${WEBHOOK_RETRY_COUNT:-3}
+      - WEBHOOK_TIMEOUT=${WEBHOOK_TIMEOUT:-30000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs:/app/logs
+      - ./test-files:/app/test-files
+    restart: unless-stopped
+    networks:
+      - backend
 
   db:
     image: postgres:15-alpine
